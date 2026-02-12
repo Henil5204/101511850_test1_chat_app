@@ -10,19 +10,32 @@
 <body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4">
 
     <div class="bg-white shadow-lg rounded-lg p-6 w-full max-w-md">
-        <h2 class="text-2xl font-bold text-center mb-4">Enter and make Chatting room</h2>
-        <div class="flex gap-2">
-            <input type="text" id="roomName" class="border p-2 rounded w-full" >
-            <button id="joinRoom" class="bg-blue-500 text-white px-4 py-2 rounded">Enter the room</button>
+        <h2 class="text-2xl font-bold text-center mb-4">Join a Chat Room</h2>
+        <div class="flex flex-col gap-2">
+            <select id="roomName" class="border p-2 rounded w-full">
+                <option value="devops">DevOps</option>
+                <option value="cloud computing">Cloud Computing</option>
+                <option value="covid19">Covid19</option>
+                <option value="sports">Sports</option>
+                <option value="nodeJS">NodeJS</option>
+            </select>
+            <div class="flex gap-2">
+                <button id="joinRoom" class="bg-blue-500 text-white px-4 py-2 rounded flex-1">Enter Room</button>
+                <button id="leaveRoom" class="bg-orange-500 text-white px-4 py-2 rounded flex-1">Leave Room</button>
+            </div>
         </div>
     </div>
 
     <div class="bg-white shadow-lg rounded-lg p-6 w-full max-w-md mt-4">
-        <h2 class="text-2xl font-bold text-center mb-4">Chat</h2>
-        <div id="chatBox" class="border p-3 h-60 overflow-auto bg-gray-50"></div>
+        <h2 class="text-2xl font-bold text-center mb-2">Chat</h2>
+        <p id="currentRoomDisplay" class="text-sm text-gray-500 text-center mb-2"></p>
         
-        <div class="flex gap-2 mt-3">
-            <input type="text" id="messageInput" class="border p-2 rounded w-full" >
+        <div id="chatBox" class="border p-3 h-60 overflow-auto bg-gray-50 rounded"></div>
+        
+        <div id="typingIndicator" class="text-sm italic text-gray-400 h-5 mt-1"></div>
+        
+        <div class="flex gap-2 mt-2">
+            <input type="text" id="messageInput" class="border p-2 rounded w-full" placeholder="Type a message...">
             <button id="sendMessage" class="bg-green-500 text-white px-4 py-2 rounded">Send</button>
         </div>
 
@@ -31,79 +44,90 @@
 
     <script>
         const socket = io("http://localhost:3000");
+        const username = localStorage.getItem("username");
 
         document.addEventListener("DOMContentLoaded", function () {
             const joinRoomBtn = document.getElementById("joinRoom");
+            const leaveRoomBtn = document.getElementById("leaveRoom");
             const sendMessageBtn = document.getElementById("sendMessage");
+            const messageInput = document.getElementById("messageInput");
 
-            if (!joinRoomBtn || !sendMessageBtn) {
-                console.error("Cant find the button.");
-                return;
-            }
-
+            // Join Room Logic
             joinRoomBtn.addEventListener("click", () => {
                 const room = document.getElementById("roomName").value;
-                if (!room) return alert("Please enter your room name");
-
                 localStorage.setItem("room", room);
                 socket.emit("joinRoom", room);
-                alert(`${room} appears!!!!! `);
-
+                document.getElementById("currentRoomDisplay").innerText = `Room: ${room}`;
                 loadMessages();
             });
 
+            // Leave Room Logic (Requirement #6)
+            leaveRoomBtn.addEventListener("click", () => {
+                const room = localStorage.getItem("room");
+                if (room) {
+                    socket.emit("leaveRoom", room);
+                    localStorage.removeItem("room");
+                    document.getElementById("chatBox").innerHTML = "";
+                    document.getElementById("currentRoomDisplay").innerText = "";
+                    alert("Left the room.");
+                }
+            });
+
+            // Typing Indicator Logic (Requirement #9)
+            messageInput.addEventListener("keypress", () => {
+                const room = localStorage.getItem("room");
+                if (room) {
+                    socket.emit("typing", { user: username, room: room });
+                }
+            });
+
+            socket.on("displayTyping", (data) => {
+                const typingDiv = document.getElementById("typingIndicator");
+                typingDiv.innerText = `${data.user} is typing...`;
+                setTimeout(() => { typingDiv.innerText = ""; }, 3000);
+            });
+
+            // Sending Messages
             sendMessageBtn.addEventListener("click", () => {
-                const message = document.getElementById("messageInput").value;
-                const from_user = localStorage.getItem("username");
+                const message = messageInput.value;
                 const room = localStorage.getItem("room");
 
                 if (room && message) {
-                    socket.emit("chatMessage", { from_user, room, message });
-                    document.getElementById("messageInput").value = "";
+                    socket.emit("chatMessage", { from_user: username, room, message });
+                    messageInput.value = "";
                 }
             });
 
             socket.on("message", (data) => {
                 const chatBox = document.getElementById("chatBox");
                 const date = new Date().toLocaleTimeString();
-                chatBox.innerHTML += `<p><strong>${data.from_user}:</strong> ${data.message} (${date})</p>`;
+                chatBox.innerHTML += `<p><strong>${data.from_user}:</strong> ${data.message} <span class="text-xs text-gray-400">(${date})</span></p>`;
+                chatBox.scrollTop = chatBox.scrollHeight;
             });
         });
 
         async function loadMessages() {
             const room = localStorage.getItem("room");
-            if (!room) {
-                alert("Please enter your room first");
-                return;
-            }
+            if (!room) return;
 
             try {
-                const encodedRoom = encodeURIComponent(room);
-                const res = await fetch(`http://localhost:3000/api/chat/messages/${encodedRoom}`);
-
-                if (!res.ok) {
-                    throw new Error(`HTTP Error : ${res.status}`);
-                }
-
+                const res = await fetch(`http://localhost:3000/api/chat/messages/${encodeURIComponent(room)}`);
                 const messages = await res.json();
                 const chatBox = document.getElementById("chatBox");
                 chatBox.innerHTML = "";
                 messages.forEach((msg) => {
-                    chatBox.innerHTML += `<p><strong>${msg.from_user}:</strong> ${msg.message} (${msg.date_sent})</p>`;
+                    chatBox.innerHTML += `<p><strong>${msg.from_user}:</strong> ${msg.message} <span class="text-xs text-gray-400">(${new Date(msg.date_sent).toLocaleTimeString()})</span></p>`;
                 });
+                chatBox.scrollTop = chatBox.scrollHeight;
             } catch (err) {
-                console.error("Error :", err);
+                console.error("Error loading messages:", err);
             }
         }
 
         function logout() {
-            localStorage.removeItem("token");
-            localStorage.removeItem("username");
-            localStorage.removeItem("room");
-            alert("Logout.");
+            localStorage.clear();
             window.location.href = "login.html";
         }
     </script>
-
 </body>
 </html>

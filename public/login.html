@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log In</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="flex items-center justify-center min-h-screen bg-gray-100">
+
+    <div class="bg-white p-6 rounded shadow-lg w-full max-w-md">
+        <h2 class="text-2xl font-bold text-center mb-4">Log In</h2>
+        <input type="text" id="username" placeholder="Enter your username" class="border p-2 w-full rounded mb-2">
+        <input type="password" id="password" placeholder="Enter your password" class="border p-2 w-full rounded mb-4">
+        <button onclick="login()" class="bg-blue-500 text-white px-4 py-2 rounded w-full">Log In</button>
+        <p class="text-center text-gray-600 mt-3">Not a member yet? <a href="signup.html" class="text-blue-500">Sign Up</a></p>
+    </div>
+
+    <script>
+        async function login() {
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+        
+            const res = await fetch("http://localhost:3000/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password }),
+            });
+        
+            const data = await res.json();
+            if (res.ok) {
+                localStorage.setItem("token", data.token);
+                localStorage.setItem("username", data.user.username);
+                alert("Login successful!");
+                window.location.href = "chat.html"; // Redirect to chat page
+            } else {
+                alert(data.message);
+            }
+        }
+    </script>
+
+</body>
+</html>

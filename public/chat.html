@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Chattings</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white shadow-lg rounded-lg p-6 w-full max-w-md">
+        <h2 class="text-2xl font-bold text-center mb-4">Enter and make Chatting room</h2>
+        <div class="flex gap-2">
+            <input type="text" id="roomName" class="border p-2 rounded w-full" >
+            <button id="joinRoom" class="bg-blue-500 text-white px-4 py-2 rounded">Enter the room</button>
+        </div>
+    </div>
+
+    <div class="bg-white shadow-lg rounded-lg p-6 w-full max-w-md mt-4">
+        <h2 class="text-2xl font-bold text-center mb-4">Chat</h2>
+        <div id="chatBox" class="border p-3 h-60 overflow-auto bg-gray-50"></div>
+        
+        <div class="flex gap-2 mt-3">
+            <input type="text" id="messageInput" class="border p-2 rounded w-full" >
+            <button id="sendMessage" class="bg-green-500 text-white px-4 py-2 rounded">Send</button>
+        </div>
+
+        <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded mt-4 w-full">Log out</button>
+    </div>
+
+    <script>
+        const socket = io("http://localhost:3000");
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const joinRoomBtn = document.getElementById("joinRoom");
+            const sendMessageBtn = document.getElementById("sendMessage");
+
+            if (!joinRoomBtn || !sendMessageBtn) {
+                console.error("Cant find the button.");
+                return;
+            }
+
+            joinRoomBtn.addEventListener("click", () => {
+                const room = document.getElementById("roomName").value;
+                if (!room) return alert("Please enter your room name");
+
+                localStorage.setItem("room", room);
+                socket.emit("joinRoom", room);
+                alert(`${room} appears!!!!! `);
+
+                loadMessages();
+            });
+
+            sendMessageBtn.addEventListener("click", () => {
+                const message = document.getElementById("messageInput").value;
+                const from_user = localStorage.getItem("username");
+                const room = localStorage.getItem("room");
+
+                if (room && message) {
+                    socket.emit("chatMessage", { from_user, room, message });
+                    document.getElementById("messageInput").value = "";
+                }
+            });
+
+            socket.on("message", (data) => {
+                const chatBox = document.getElementById("chatBox");
+                const date = new Date().toLocaleTimeString();
+                chatBox.innerHTML += `<p><strong>${data.from_user}:</strong> ${data.message} (${date})</p>`;
+            });
+        });
+
+        async function loadMessages() {
+            const room = localStorage.getItem("room");
+            if (!room) {
+                alert("Please enter your room first");
+                return;
+            }
+
+            try {
+                const encodedRoom = encodeURIComponent(room);
+                const res = await fetch(`http://localhost:3000/api/chat/messages/${encodedRoom}`);
+
+                if (!res.ok) {
+                    throw new Error(`HTTP Error : ${res.status}`);
+                }
+
+                const messages = await res.json();
+                const chatBox = document.getElementById("chatBox");
+                chatBox.innerHTML = "";
+                messages.forEach((msg) => {
+                    chatBox.innerHTML += `<p><strong>${msg.from_user}:</strong> ${msg.message} (${msg.date_sent})</p>`;
+                });
+            } catch (err) {
+                console.error("Error :", err);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem("token");
+            localStorage.removeItem("username");
+            localStorage.removeItem("room");
+            alert("Logout.");
+            window.location.href = "login.html";
+        }
+    </script>
+
+</body>
+</html>

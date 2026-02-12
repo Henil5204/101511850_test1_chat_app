@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="flex items-center justify-center min-h-screen bg-gray-100">
+
+    <div class="bg-white p-6 rounded shadow-lg w-full max-w-md">
+        <h2 class="text-2xl font-bold text-center mb-4">Sign Up</h2>
+        <input type="text" id="username" placeholder="Enter your username" class="border p-2 w-full rounded mb-2">
+        <input type="text" id="firstname" placeholder="Enter your first name" class="border p-2 w-full rounded mb-2">
+        <input type="text" id="lastname" placeholder="Enter your last name" class="border p-2 w-full rounded mb-2">
+        <input type="password" id="password" placeholder="Enter your password" class="border p-2 w-full rounded mb-4">
+        <button onclick="signup()" class="bg-green-500 text-white px-4 py-2 rounded w-full">Sign Up</button>
+        <p class="text-center text-gray-600 mt-3">Already a member? <a href="login.html" class="text-blue-500">Log In</a></p>
+    </div>
+
+    <script>
+        async function signup() {
+            const username = document.getElementById("username").value;
+            const firstname = document.getElementById("firstname").value;
+            const lastname = document.getElementById("lastname").value;
+            const password = document.getElementById("password").value;
+        
+            const res = await fetch("http://localhost:3000/api/auth/signup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, firstname, lastname, password }),
+            });
+        
+            const data = await res.json();
+            if (res.ok) {
+                alert("Sign up successful! Redirecting to login page.");
+                window.location.href = "login.html";
+            } else {
+                alert(data.message);
+            }
+        }
+    </script>
+
+</body>
+</html>
